@@ -1,4 +1,3 @@
-```markdown
 # 🎨 CyberPixel
 
 ![Python](https://img.shields.io/badge/Made%20with-Python-blue)
