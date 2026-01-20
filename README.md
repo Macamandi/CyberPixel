@@ -23,7 +23,6 @@ It features a custom GUI optimized for 480x320 resolution, a curated DB32 color 
 
 ## 📸 Screenshots
 
-*(Place your screenshots here! Example below)*
 ![CyberPixel on Linux Mint](RodaMenta.png)
 *Running on Linux Mint*
 
@@ -89,3 +88,4 @@ CyberPixel is designed to be used with a keyboard.
 ---
 
 Made with ❤️ and Python by **Macamandi**.
+
