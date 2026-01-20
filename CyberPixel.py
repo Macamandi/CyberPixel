@@ -5,13 +5,13 @@ import tkinter as tk
 from tkinter import filedialog, simpledialog
 from PIL import Image as PilImage
 
-# Define a classe da janela antes do Pygame iniciar para o arquivo .desktop reconhecer
+# Define a classe da janela antes do Pygame iniciar
 try:
     os.environ['SDL_VIDEO_X11_WMCLASS'] = "CyberPixelApp"
 except:
     pass
 
-# --- Inicialização do Tkinter (para janelas de arquivo) ---
+# --- Inicialização do Tkinter ---
 root = tk.Tk()
 root.withdraw() 
 
@@ -36,11 +36,13 @@ cor_atual_index = 21
 COR_BG_SIDEBAR = (40, 40, 50)
 COR_TEXTO = (200, 200, 200)
 COR_TEXTO_DESTAQUE = (255, 255, 0)
+# Cores do Xadrez (Transparência)
+CHECKER_1 = (60, 60, 60)
+CHECKER_2 = (90, 90, 90)
 
 # --- Inicialização Pygame ---
 pygame.init()
 
-# Tenta carregar ícone se existir
 try:
     if os.path.exists("CyberPixelLogo.png"):
         icone = pygame.image.load("CyberPixelLogo.png")
@@ -48,15 +50,16 @@ try:
 except: pass
 
 tela = pygame.display.set_mode((LARGURA_TELA_TOTAL, ALTURA_TELA_TOTAL))
-pygame.display.set_caption("CyberPixel v7.0")
+pygame.display.set_caption("CyberPixel v7.1 (Alpha)")
 
 fonte = pygame.font.SysFont("monospace", 11, bold=True)
 fonte_grande = pygame.font.SysFont("monospace", 14, bold=True)
 clock = pygame.time.Clock()
 
 # --- Estrutura de Dados ---
+# ATENÇÃO: Agora iniciamos com None (Transparente) em vez de PALETA[0]
 def criar_grid_vazio(tamanho):
-    return [[PALETA[0] for _ in range(tamanho)] for _ in range(tamanho)]
+    return [[None for _ in range(tamanho)] for _ in range(tamanho)]
 
 frames = [criar_grid_vazio(TAMANHO_GRID)]
 frame_atual = 0
@@ -65,6 +68,7 @@ historico_undo = []
 MAX_UNDO = 30
 
 def salvar_estado():
+    # Copia profunda manual para lidar com None
     copia = [linha[:] for linha in frames[frame_atual]]
     historico_undo.append((copia, TAMANHO_GRID)) 
     if len(historico_undo) > MAX_UNDO: historico_undo.pop(0)
@@ -82,18 +86,30 @@ def mudar_resolucao(novo_tamanho):
 
     novos_frames = []
     for grid_antigo in frames:
-        img_temp = PilImage.new('RGB', (TAMANHO_GRID, TAMANHO_GRID))
+        # Converte grid para imagem PIL RGBA temporária
+        img_temp = PilImage.new('RGBA', (TAMANHO_GRID, TAMANHO_GRID), (0,0,0,0))
         pix = img_temp.load()
         for y in range(TAMANHO_GRID):
             for x in range(TAMANHO_GRID):
-                pix[x, y] = grid_antigo[y][x]
+                cor = grid_antigo[y][x]
+                if cor is not None:
+                    pix[x, y] = (cor[0], cor[1], cor[2], 255)
+                else:
+                    pix[x, y] = (0, 0, 0, 0) # Transparente
         
+        # Redimensiona usando Nearest Neighbor (pixel art style)
         img_temp = img_temp.resize((novo_tamanho, novo_tamanho), PilImage.NEAREST)
         
+        # Reconverte imagem PIL para Grid do CyberPixel
         novo_grid = criar_grid_vazio(novo_tamanho)
+        pix_novo = img_temp.load()
         for y in range(novo_tamanho):
             for x in range(novo_tamanho):
-                novo_grid[y][x] = img_temp.getpixel((x, y))
+                r, g, b, a = pix_novo[x, y]
+                if a == 0:
+                    novo_grid[y][x] = None
+                else:
+                    novo_grid[y][x] = (r, g, b)
         novos_frames.append(novo_grid)
 
     frames = novos_frames
@@ -105,10 +121,12 @@ def mudar_resolucao(novo_tamanho):
 def flood_fill(grid, start_x, start_y, new_color):
     target_color = grid[start_y][start_x]
     if target_color == new_color: return
+    
     stack = [(start_x, start_y)]
     while stack:
         cx, cy = stack.pop()
         if 0 <= cx < TAMANHO_GRID and 0 <= cy < TAMANHO_GRID:
+            # Compara se é a mesma cor (lidando com None)
             if grid[cy][cx] == target_color:
                 grid[cy][cx] = new_color
                 stack.append((cx - 1, cy))
@@ -136,19 +154,36 @@ def acao_redimensionar():
 def acao_salvar():
     caminho = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG", "*.png"), ("GIF", "*.gif")])
     if not caminho: return
+    
     if caminho.endswith(".gif"):
+        # Exportação GIF (Simplificada, fundo preto se transparente pois GIF tem limitações chatas com alpha parcial)
         lista_pil = []
         for f in frames:
-            img = PilImage.new('RGB', (TAMANHO_GRID, TAMANHO_GRID))
+            img = PilImage.new('RGBA', (TAMANHO_GRID, TAMANHO_GRID), (0,0,0,0))
             pix = img.load()
             for y in range(TAMANHO_GRID):
-                for x in range(TAMANHO_GRID): pix[x, y] = f[y][x]
-            lista_pil.append(img.resize((320, 320), PilImage.NEAREST))
+                for x in range(TAMANHO_GRID): 
+                    c = f[y][x]
+                    if c: pix[x, y] = (c[0], c[1], c[2], 255)
+            # Remove alpha pro GIF ficar ok ou usa disposal method (aqui simplificado para RGB)
+            bg = PilImage.new('RGB', img.size, (0,0,0))
+            bg.paste(img, mask=img.split()[3])
+            lista_pil.append(bg.resize((320, 320), PilImage.NEAREST))
         lista_pil[0].save(caminho, save_all=True, append_images=lista_pil[1:], duration=250, loop=0)
     else:
-        surf = pygame.Surface((TAMANHO_GRID, TAMANHO_GRID))
+        # Exportação PNG com ALPHA (Transparência Real)
+        surf = pygame.Surface((TAMANHO_GRID, TAMANHO_GRID), pygame.SRCALPHA)
+        # Preenche com transparente
+        surf.fill((0,0,0,0))
+        
+        grid = frames[frame_atual]
         for y in range(TAMANHO_GRID):
-            for x in range(TAMANHO_GRID): surf.set_at((x, y), frames[frame_atual][y][x])
+            for x in range(TAMANHO_GRID): 
+                cor = grid[y][x]
+                if cor is not None:
+                    surf.set_at((x, y), cor)
+                # Se for None, já está transparente (0,0,0,0)
+                
         pygame.image.save(surf, caminho)
 
 def acao_carregar():
@@ -172,11 +207,19 @@ def acao_carregar():
         
         for i in range(n_frames):
             img_pil.seek(i)
-            frame_rgb = img_pil.convert("RGB").resize((TAMANHO_GRID, TAMANHO_GRID), PilImage.NEAREST)
+            # Converte para RGBA para ler transparência
+            frame_rgba = img_pil.convert("RGBA").resize((TAMANHO_GRID, TAMANHO_GRID), PilImage.NEAREST)
             grid_frame = criar_grid_vazio(TAMANHO_GRID)
+            
+            pix = frame_rgba.load()
             for y in range(TAMANHO_GRID):
                 for x in range(TAMANHO_GRID):
-                    grid_frame[y][x] = frame_rgb.getpixel((x, y))
+                    r, g, b, a = pix[x, y]
+                    if a > 0: # Considera pixel se tiver alpha > 0
+                        grid_frame[y][x] = (r, g, b)
+                    else:
+                        grid_frame[y][x] = None
+                        
             frames_temp.append(grid_frame)
             
         frames = frames_temp
@@ -194,8 +237,6 @@ paleta_cursor_x, paleta_cursor_y = 0, 0
 while rodando:
     clock.tick(30)
     
-    # --- EVENTOS ---
-    # Referência do grid atual para lógica
     grid_logica = frames[frame_atual] 
     
     keys = pygame.key.get_pressed()
@@ -222,27 +263,48 @@ while rodando:
                     elif evento.key == pygame.K_LEFT: cursor_x = max(0, cursor_x - 1)
                     elif evento.key == pygame.K_RIGHT: cursor_x = min(TAMANHO_GRID - 1, cursor_x + 1)
                 
-                if evento.key == pygame.K_SPACE: salvar_estado(); grid_logica[cursor_y][cursor_x] = PALETA[cor_atual_index]
-                elif evento.key == pygame.K_e: salvar_estado(); grid_logica[cursor_y][cursor_x] = PALETA[0]
-                elif evento.key == pygame.K_g: salvar_estado(); flood_fill(grid_logica, cursor_x, cursor_y, PALETA[cor_atual_index])
+                # [Espaço] Pinta
+                if evento.key == pygame.K_SPACE: 
+                    salvar_estado()
+                    grid_logica[cursor_y][cursor_x] = PALETA[cor_atual_index]
+                
+                # [E] Apaga (Torna None/Transparente)
+                elif evento.key == pygame.K_e: 
+                    salvar_estado()
+                    grid_logica[cursor_y][cursor_x] = None # <--- AQUI ESTÁ A MÁGICA
+                
+                elif evento.key == pygame.K_g: 
+                    salvar_estado()
+                    flood_fill(grid_logica, cursor_x, cursor_y, PALETA[cor_atual_index])
+                
                 elif evento.key == pygame.K_z:
                     if ctrl and historico_undo: 
                         dados_undo = historico_undo.pop()
                         frames[frame_atual] = dados_undo[0]
                         if dados_undo[1] != TAMANHO_GRID: 
                             mudar_resolucao(dados_undo[1])
-                            frames[frame_atual] = dados_undo[0] # Restaura após resize
+                            frames[frame_atual] = dados_undo[0]
 
                 elif evento.key == pygame.K_c: 
                     mostrando_seletor = True
                     paleta_cursor_y, paleta_cursor_x = divmod(cor_atual_index, 8)
+                
                 elif evento.key == pygame.K_i:
-                    try: cor_atual_index = PALETA.index(grid_logica[cursor_y][cursor_x])
-                    except: pass
+                    # Conta-gotas (precisa checar se não é None)
+                    cor_pick = grid_logica[cursor_y][cursor_x]
+                    if cor_pick is not None:
+                        try: cor_atual_index = PALETA.index(cor_pick)
+                        except: pass
+                        
                 elif evento.key == pygame.K_TAB: mostrar_grade = not mostrar_grade
                 elif evento.key == pygame.K_s: acao_salvar()
                 elif evento.key == pygame.K_l: acao_carregar()
-                elif evento.key == pygame.K_n: frames.insert(frame_atual + 1, [l[:] for l in grid_logica]); frame_atual += 1
+                
+                # Copia frame precisa lidar com None também (l[:] funciona)
+                elif evento.key == pygame.K_n: 
+                    frames.insert(frame_atual + 1, [l[:] for l in grid_logica])
+                    frame_atual += 1
+                
                 elif evento.key == pygame.K_x: 
                     if len(frames) > 1: frames.pop(frame_atual); frame_atual = min(frame_atual, len(frames)-1)
                 elif evento.key == pygame.K_COMMA: frame_atual = max(0, frame_atual - 1)
@@ -251,22 +313,38 @@ while rodando:
                 if ctrl:
                     if evento.key in [pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]:
                         salvar_estado()
-                        if evento.key == pygame.K_UP: frames[frame_atual] = shift_canvas(grid_logica, 0, -1)
-                        elif evento.key == pygame.K_DOWN: frames[frame_atual] = shift_canvas(grid_logica, 0, 1)
-                        elif evento.key == pygame.K_LEFT: frames[frame_atual] = shift_canvas(grid_logica, -1, 0)
-                        elif evento.key == pygame.K_RIGHT: frames[frame_atual] = shift_canvas(grid_logica, 1, 0)
+                        dx, dy = 0, 0
+                        if evento.key == pygame.K_UP: dy = -1
+                        elif evento.key == pygame.K_DOWN: dy = 1
+                        elif evento.key == pygame.K_LEFT: dx = -1
+                        elif evento.key == pygame.K_RIGHT: dx = 1
+                        frames[frame_atual] = shift_canvas(grid_logica, dx, dy)
 
     # --- DESENHO ---
     tela.fill(COR_BG_SIDEBAR)
     
-    # Atualiza referência do grid para desenho (caso resolução tenha mudado)
     grid_desenho = frames[frame_atual] 
     
-    # Desenha Canvas
     for y in range(TAMANHO_GRID):
         for x in range(TAMANHO_GRID):
-            rect = (x * TAMANHO_PIXEL, y * TAMANHO_PIXEL, TAMANHO_PIXEL, TAMANHO_PIXEL)
-            pygame.draw.rect(tela, grid_desenho[y][x], rect)
+            rx, ry = x * TAMANHO_PIXEL, y * TAMANHO_PIXEL
+            rect = (rx, ry, TAMANHO_PIXEL, TAMANHO_PIXEL)
+            
+            cor = grid_desenho[y][x]
+            
+            if cor is None:
+                # Desenha padrão Xadrez (Checkerboard) para representar transparência
+                half = TAMANHO_PIXEL // 2
+                # Fundo base (escuro)
+                pygame.draw.rect(tela, CHECKER_1, rect)
+                # Quadrados claros
+                if half > 0:
+                    pygame.draw.rect(tela, CHECKER_2, (rx, ry, half, half))
+                    pygame.draw.rect(tela, CHECKER_2, (rx+half, ry+half, half, half))
+            else:
+                # Desenha a cor sólida
+                pygame.draw.rect(tela, cor, rect)
+                
             if mostrar_grade and TAMANHO_PIXEL > 4: 
                 pygame.draw.rect(tela, (30,30,30), rect, 1)
 
@@ -277,9 +355,9 @@ while rodando:
         if cursor_x < TAMANHO_GRID and cursor_y < TAMANHO_GRID:
             pygame.draw.rect(tela, cor_c, (cursor_x*TAMANHO_PIXEL, cursor_y*TAMANHO_PIXEL, TAMANHO_PIXEL, TAMANHO_PIXEL), espessura)
 
-    # Sidebar (Atualizada com todos os comandos)
+    # Sidebar
     sx, sy = CANVAS_SIZE + 10, 10
-    desenhar_texto(tela, "CYBERPIXEL v7.0", sx, sy, COR_TEXTO_DESTAQUE, fonte_grande); sy += 25
+    desenhar_texto(tela, "CYBERPIXEL v7.1", sx, sy, COR_TEXTO_DESTAQUE, fonte_grande); sy += 25
     pygame.draw.rect(tela, PALETA[cor_atual_index], (sx, sy, 30, 30))
     pygame.draw.rect(tela, (255,255,255), (sx, sy, 30, 30), 2)
     desenhar_texto(tela, f"Cor: {cor_atual_index}", sx + 38, sy + 8); sy += 40
