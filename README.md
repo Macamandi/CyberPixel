@@ -1,3 +1,4 @@
+```markdown
 # 🎨 CyberPixel
 
 ![Python](https://img.shields.io/badge/Made%20with-Python-blue)
@@ -10,14 +11,15 @@ It features a custom GUI optimized for 480x320 resolution, a curated DB32 color 
 
 ---
 
-## ✨ Features
+## ✨ Features (v7.1)
 
 * **Cyberdeck Ready:** Interface optimized for small screens (320x320 canvas + sidebar).
-* **Animation Support:** Create, edit, and preview animations. Imports/Exports **GIFs** automatically.
-* **Smart Tools:** Pencil, Eraser, Flood Fill, and Eyedropper.
+* **Transparency Support:** Full Alpha Channel support with checkerboard background visualization.
+* **Animation:** Create, edit, and preview animations. Imports/Exports **GIFs** automatically.
+* **Smart Tools:** Pencil, Eraser (Transparency), Flood Fill, and Eyedropper.
 * **Dynamic Resolution:** Start with 16x16 and resize to 32x32, 64x64, or 128x128 on the fly (`Ctrl+R`).
 * **Professional Workflow:** Unlimited Undo/Redo (`Ctrl+Z`) and Grid toggle.
-* **Native Integration:** Installs as a native Linux app with menu shortcuts.
+* **Export:** Saves as **PNG** with transparency or **GIF** animation.
 
 ---
 
@@ -31,26 +33,70 @@ It features a custom GUI optimized for 480x320 resolution, a curated DB32 color 
 
 ---
 
-## 🚀 Installation
+## 🚀 Installation (Raspberry Pi & Linux)
 
-### Raspberry Pi (Bookworm) & Linux Mint
+CyberPixel requires a virtual environment to run correctly on modern Linux distributions (like Raspberry Pi OS Bookworm) to avoid conflicts with system packages.
 
-CyberPixel comes with an automated installer script that handles dependencies (pygame, pillow), compilation, and menu shortcuts.
+### 1. System Dependencies
+First, install the required system libraries (Git and Tkinter for the GUI):
 
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/Macamandi/CyberPixel.git](https://github.com/Macamandi/CyberPixel.git)
-    cd CyberPixel
-    ```
+```bash
+sudo apt-get update
+sudo apt-get install python3-tk python3-venv git
 
-2.  **Run the installer:**
-    ```bash
-    chmod +x install.sh
-    ./install.sh
-    ```
+```
 
-3.  **Run it:**
-    Find **CyberPixel** in your System Menu under **Graphics**, or run `CyberPixel` in the terminal.
+### 2. Clone & Setup
+
+Clone the repository and set up the Python virtual environment:
+
+```bash
+# Clone the repo
+git clone https://github.com/Macamandi/CyberPixel.git
+cd CyberPixel
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate it
+source venv/bin/activate
+
+```
+
+### 3. Install Python Libraries
+
+With the environment activated `(venv)`, install the project dependencies:
+
+```bash
+pip install -r requirements.txt
+
+```
+
+### 4. Desktop Shortcut (Optional)
+
+To add CyberPixel to your system menu (Graphics category), run the included script:
+
+```bash
+chmod +x install.sh
+./install.sh
+
+```
+
+---
+
+## ▶️ How to Run
+
+**Option 1: Desktop Menu**
+Find **CyberPixel** in your System Menu under **Graphics**.
+
+**Option 2: Terminal**
+
+```bash
+cd CyberPixel
+source venv/bin/activate
+python CyberPixel.py
+
+```
 
 ---
 
@@ -59,21 +105,21 @@ CyberPixel comes with an automated installer script that handles dependencies (p
 CyberPixel is designed to be used with a keyboard.
 
 | Category | Key | Action |
-| :--- | :---: | :--- |
+| --- | --- | --- |
 | **Tools** | `Space` | Paint Pixel |
-| | `E` | Eraser |
-| | `G` | Flood Fill (Bucket) |
-| | `I` | Eyedropper (Pick Color) |
+|  | `E` | Eraser (Make Transparent) |
+|  | `G` | Flood Fill (Bucket) |
+|  | `I` | Eyedropper (Pick Color) |
 | **Navigation** | `Arrows` | Move Cursor |
-| | `Ctrl` + `Arrows` | Shift Canvas (Move Image) |
-| **System** | `S` | Save (PNG or GIF) |
-| | `L` | Load Image / Open GIF |
-| | `Ctrl` + `R` | Resize Canvas (e.g., 16 to 32) |
-| | `Ctrl` + `Z` | Undo |
-| | `Tab` | Toggle Grid |
+|  | `Ctrl` + `Arrows` | Shift Canvas (Move Image) |
+| **System** | `S` | Save (PNG with Alpha or GIF) |
+|  | `L` | Load Image / Open GIF |
+|  | `Ctrl` + `R` | Resize Canvas (e.g., 16 to 32) |
+|  | `Ctrl` + `Z` | Undo |
+|  | `Tab` | Toggle Grid |
 | **Animation** | `N` | New Frame |
-| | `X` | Delete Current Frame |
-| | `<` and `>` | Previous / Next Frame |
+|  | `X` | Delete Current Frame |
+|  | `<` and `>` | Previous / Next Frame |
 | **Palette** | `C` | Open Color Selector |
 
 ---
@@ -82,10 +128,13 @@ CyberPixel is designed to be used with a keyboard.
 
 * **Language:** Python 3
 * **Engine:** Pygame
-* **GUI:** Custom drawn (No heavy GUI libraries)
-* **Build Tool:** PyInstaller
+* **GUI:** Custom drawn + Tkinter (File Dialogs)
+* **Architecture:** Venv-based execution
 
 ---
 
 Made with ❤️ and Python by **Macamandi**.
 
+```
+
+```
